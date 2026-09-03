@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>희망도서 신청 서비스</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-700">
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toast-container"></div>
+
+  <!-- 상단 네비게이션 헤더 -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">희망도서 신청</h1>
+          <p class="text-xs text-slate-500 hidden sm:block">읽고 싶은 책을 간편하게 검색하고 신청하세요</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- GAS 연결 상태 배지 -->
+        <button id="header-status-badge" type="button" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full transition-colors text-xs font-medium text-slate-600">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span>상태 확인중</span>
+        </button>
+
+        <!-- 환경설정 버튼 -->
+        <button id="open-settings-btn" type="button" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="GAS 웹앱 설정">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 컨테이너 -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+    
+    <!-- 1. 도서 정보 입력 방식 선택 탭 카드 -->
+    <section class="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+      <div class="mb-5">
+        <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-md bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">1</span>
+          도서 정보 불러오기
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">원하는 방식으로 도서를 찾으면 정보가 자동으로 입력됩니다.</p>
+      </div>
+
+      <!-- 모드 전환 탭 버튼 -->
+      <div class="grid grid-cols-3 gap-2 p-1 bg-slate-100/80 rounded-xl mb-6">
+        <button type="button" data-tab="search" class="tab-btn py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <span>도서 검색</span>
+        </button>
+        <button type="button" data-tab="url" class="tab-btn py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 bg-gray-100 text-gray-600 hover:bg-gray-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+          </svg>
+          <span>URL 자동입력</span>
+        </button>
+        <button type="button" data-tab="manual" class="tab-btn py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 bg-gray-100 text-gray-600 hover:bg-gray-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+          </svg>
+          <span>직접 입력</span>
+        </button>
+      </div>
+
+      <!-- 탭 1: 도서 검색 패널 -->
+      <div id="tab-search-content" class="space-y-4">
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+            <input type="text" id="search-input" placeholder="도서명 또는 저자명을 입력하세요 (예: 트렌드 코리아, 한강)" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+          </div>
+          <button type="button" id="search-btn" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm hover:shadow flex items-center gap-1.5 flex-shrink-0">
+            <span>검색</span>
+          </button>
+        </div>
+
+        <!-- 검색 로딩 스켈레톤 -->
+        <div id="search-loading" class="hidden space-y-3 pt-2">
+          <div class="skeleton h-24 rounded-xl w-full"></div>
+          <div class="skeleton h-24 rounded-xl w-full"></div>
+        </div>
+
+        <!-- 검색 결과 없음 -->
+        <div id="search-empty" class="hidden py-8 text-center text-slate-400">
+          <svg class="w-12 h-12 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-sm font-medium">검색 결과가 없습니다.</p>
+          <p class="text-xs text-slate-400 mt-1">검색어를 확인하시거나 직접 입력 탭을 이용해주세요.</p>
+        </div>
+
+        <!-- 검색 결과 카드 목록 -->
+        <div id="search-results-container" class="hidden space-y-3 pt-2">
+          <div class="flex items-center justify-between text-xs text-slate-500 px-1 font-medium">
+            <span>검색 결과 (선택 시 신청서에 자동 입력됩니다)</span>
+          </div>
+          <div id="search-results-list" class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+            <!-- 자바스크립트로 렌더링 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭 2: URL 자동입력 패널 -->
+      <div id="tab-url-content" class="hidden space-y-4">
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-slate-600">온라인 서점 상품 링크(URL)</label>
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+              </div>
+              <input type="url" id="url-input" placeholder="https://www.aladin.co.kr/... 또는 교보문고, YES24 링크 붙여넣기" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+            </div>
+            <button type="button" id="parse-url-btn" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm hover:shadow flex items-center gap-1.5 flex-shrink-0">
+              <span>정보 추출</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400">💡 알라딘, 교보문고, YES24 도서 상세 페이지 링크를 지원합니다.</p>
+        </div>
+
+        <!-- URL 로딩 -->
+        <div id="url-loading" class="hidden py-4 text-center text-blue-600 space-y-2">
+          <div class="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-xs font-medium text-slate-600">서점에서 도서 정보를 가져오는 중입니다...</p>
+        </div>
+      </div>
+
+      <!-- 탭 3: 직접 입력 안내 패널 -->
+      <div id="tab-manual-content" class="hidden py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+        <p class="text-sm font-medium text-slate-700">✍️ 아래 신청서에 도서 정보를 직접 작성해주세요.</p>
+        <p class="text-xs text-slate-400 mt-1">도서명과 신청자명은 필수 입력 항목입니다.</p>
+      </div>
+    </section>
+
+    <!-- 2. 희망도서 신청서 작성 폼 -->
+    <section id="form-section" class="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-md bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">2</span>
+            신청서 작성
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-0.5">입력된 정보를 확인하고 신청을 완료하세요.</p>
+        </div>
+
+        <!-- 선택된 도서 뱃지 -->
+        <div id="selected-book-badge" class="hidden flex items-center gap-2 bg-blue-50 border border-blue-200/80 px-3 py-1.5 rounded-lg">
+          <img id="selected-book-cover" src="" alt="도서 표지" class="w-6 h-8 object-cover rounded shadow-xs">
+          <span class="text-xs font-semibold text-blue-700">도서 선택됨</span>
+        </div>
+      </div>
+
+      <form id="request-form" class="space-y-5">
+        <!-- 신청자명 -->
+        <div>
+          <label for="applicant-input" class="block text-xs font-bold text-slate-700 mb-1.5">
+            신청자명 <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="applicant-input" required placeholder="신청하시는 분의 이름을 입력하세요" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+        </div>
+
+        <!-- 도서명 & 저자명 (2열) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="book-title" class="block text-xs font-bold text-slate-700 mb-1.5">
+              도서명 <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="book-title" required placeholder="도서 제목을 입력하세요" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+          </div>
+          <div>
+            <label for="book-author" class="block text-xs font-bold text-slate-700 mb-1.5">저자명</label>
+            <input type="text" id="book-author" placeholder="저자명을 입력하세요" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+          </div>
+        </div>
+
+        <!-- 출판사 & 가격 (2열) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="book-publisher" class="block text-xs font-bold text-slate-700 mb-1.5">출판사</label>
+            <input type="text" id="book-publisher" placeholder="출판사명을 입력하세요" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+          </div>
+          <div>
+            <label for="book-price" class="block text-xs font-bold text-slate-700 mb-1.5">가격 (원)</label>
+            <input type="number" id="book-price" placeholder="정가 또는 가격(숫자만)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+          </div>
+        </div>
+
+        <!-- 구매처 & 구매링크 (2열) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-1">
+            <label for="book-mall" class="block text-xs font-bold text-slate-700 mb-1.5">구매처</label>
+            <select id="book-mall" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+              <option value="알라딘">알라딘</option>
+              <option value="교보문고">교보문고</option>
+              <option value="YES24">YES24</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label for="book-link" class="block text-xs font-bold text-slate-700 mb-1.5">구매 링크 (URL)</label>
+            <input type="url" id="book-link" placeholder="https://..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+          </div>
+        </div>
+
+        <!-- 신청 사유 / 비고 -->
+        <div>
+          <label for="book-notes" class="block text-xs font-bold text-slate-700 mb-1.5">신청 사유 / 비고 (선택)</label>
+          <textarea id="book-notes" rows="2" placeholder="도서 신청 사유나 전달사항이 있다면 적어주세요." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"></textarea>
+        </div>
+
+        <!-- 제출 버튼 -->
+        <div class="pt-4">
+          <button type="submit" id="submit-btn" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base rounded-xl transition-all shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2">
+            <div id="submit-spinner" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span id="submit-btn-text">희망도서 신청하기</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- 푸터 -->
+  <footer class="border-t border-slate-200 py-6 text-center text-xs text-slate-400 bg-white">
+    <p>희망도서 신청 시스템 &bull; Powered by Google Apps Script & Google Sheets</p>
+  </footer>
+
+  <!-- ========================================== -->
+  <!-- 3. 설정 모달 (GAS Web App URL 설정) -->
+  <!-- ========================================== -->
+  <div id="settings-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 scale-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          </svg>
+          Google Apps Script 연동 설정
+        </h3>
+        <button id="close-settings-btn" type="button" class="text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <label class="block text-xs font-semibold text-slate-700">GAS 웹 앱 배포 URL</label>
+        <input type="url" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Google Sheets &rarr; 확장 프로그램 &rarr; Apps Script에서 배포한 <strong class="text-slate-700">웹 앱 URL</strong>입니다.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button type="button" id="test-gas-url-btn" class="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-xl transition-all">
+          연결 테스트
+        </button>
+        <button type="button" id="save-gas-url-btn" class="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-xl transition-all shadow-sm">
+          설정 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 4. 신청 완료 모달 -->
+  <!-- ========================================== -->
+  <div id="success-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4 scale-in">
+      <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">신청이 완료되었습니다!</h3>
+        <p class="text-xs text-slate-500 mt-1">구글 시트에 성공적으로 등록되었습니다.</p>
+      </div>
+      <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left space-y-1 text-xs text-slate-600">
+        <div><span class="text-slate-400">신청자:</span> <strong id="success-applicant" class="text-slate-800"></strong></div>
+        <div class="truncate"><span class="text-slate-400">도서명:</span> <strong id="success-book-title" class="text-slate-800"></strong></div>
+      </div>
+      <button type="button" id="close-success-btn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm">
+        확인
+      </button>
+    </div>
+  </div>
+
+  <!-- JS 로드 -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
