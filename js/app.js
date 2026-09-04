@@ -1,5 +1,5 @@
 /**
- * 희망도서 신청 웹앱 메인 UI 및 관리자 모드 로직
+ * 희망도서 신청 웹앱 메인 UI 및 관리자 모드 로직 (구글 시트 환경설정 실시간 동기화)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,12 +12,15 @@ const App = {
   selectedBook: null,
   isAdminAuthenticated: false,
 
-  init() {
+  async init() {
     this.cacheElements();
     this.bindEvents();
     this.loadSavedState();
     this.applyCustomSettingsToUI();
     this.updateGasUrlStatus();
+
+    // 구글 시트에서 최신 환경설정 로드 및 동기화
+    await this.syncRemoteSettings();
   },
 
   cacheElements() {
@@ -233,8 +236,23 @@ const App = {
   },
 
   // ==========================================
-  // 관리자 커스텀 설정 적용
+  // 구글 시트 환경설정 실시간 동기화
   // ==========================================
+  async syncRemoteSettings() {
+    try {
+      const res = await ApiService.getRemoteSettings();
+      if (res && res.status === 'success' && res.settings) {
+        CONFIG.saveSettings(res.settings);
+        if (res.settings.adminPassword) {
+          CONFIG.setAdminPassword(res.settings.adminPassword);
+        }
+        this.applyCustomSettingsToUI();
+      }
+    } catch (e) {
+      console.warn('환경설정 동기화 실패 (로컬 설정 유지):', e);
+    }
+  },
+
   applyCustomSettingsToUI() {
     const settings = CONFIG.getSettings();
 
@@ -279,9 +297,21 @@ const App = {
     this.adminAuthModal.classList.add('hidden');
   },
 
-  handleAuthSubmit() {
+  async handleAuthSubmit() {
     const password = this.adminPasswordInput.value;
-    if (CONFIG.verifyAdminPassword(password)) {
+    if (!password) {
+      this.showToast('암호를 입력해주세요.', 'warning');
+      return;
+    }
+
+    this.submitAuthBtn.disabled = true;
+    this.submitAuthBtn.textContent = '인증 중...';
+
+    const isValid = await ApiService.verifyAdminPassword(password);
+    this.submitAuthBtn.disabled = false;
+    this.submitAuthBtn.textContent = '인증 확인';
+
+    if (isValid) {
       this.isAdminAuthenticated = true;
       this.closeAuthModal();
       this.openAdminSettings();
@@ -298,11 +328,15 @@ const App = {
   // ==========================================
   // 관리자 설정 패널 제어
   // ==========================================
-  openAdminSettings() {
+  async openAdminSettings() {
     this.loadAdminSettingsIntoForm();
     this.switchAdminTab('system');
     this.adminSettingsModal.classList.remove('hidden');
     this.adminSettingsModal.classList.add('fade-in');
+
+    // 최신 시트 설정값 백그라운드 재동기화
+    await this.syncRemoteSettings();
+    this.loadAdminSettingsIntoForm();
   },
 
   closeAdminSettings() {
@@ -362,11 +396,31 @@ const App = {
       successMessage: this.settingSuccessMsg.value.trim()
     };
 
+    // 로컬 저장 및 UI 즉시 반영
     CONFIG.saveSettings(updatedSettings);
     this.applyCustomSettingsToUI();
     this.updateGasUrlStatus();
-    this.showToast('모든 관리자 설정이 성공적으로 저장 및 적용되었습니다.', 'success');
-    this.closeAdminSettings();
+
+    this.saveAllSettingsBtn.disabled = true;
+    this.saveAllSettingsBtn.textContent = '시트에 저장 중...';
+
+    try {
+      // 구글 시트에 실시간 저장
+      const res = await ApiService.saveRemoteSettings(updatedSettings);
+      this.saveAllSettingsBtn.disabled = false;
+      this.saveAllSettingsBtn.textContent = '설정 저장하기';
+
+      if (res && res.status === 'success') {
+        this.showToast('구글 시트에 설정이 영구 저장되었습니다!', 'success');
+      } else {
+        this.showToast('설정이 저장되었습니다. (GAS 재배포 확인 필요)', 'info');
+      }
+      this.closeAdminSettings();
+    } catch (err) {
+      this.saveAllSettingsBtn.disabled = false;
+      this.saveAllSettingsBtn.textContent = '설정 저장하기';
+      this.showToast(`시트 저장 오류: ${err.message}`, 'error');
+    }
   },
 
   async testGasConnection() {
@@ -406,12 +460,12 @@ const App = {
   },
 
   async handleInitSheetHeaders() {
-    if (!confirm('구글 시트에 헤더([신청일시, 신청자명, ...])를 강제 생성하시겠습니까?')) {
+    if (!confirm('구글 시트에 헤더 및 환경설정 시트를 초기화하시겠습니까?')) {
       return;
     }
 
     this.settingInitSheetBtn.disabled = true;
-    this.settingInitSheetBtn.textContent = '요청 중...';
+    this.settingInitSheetBtn.textContent = '초기화 중...';
 
     try {
       const res = await ApiService.initSheetHeaders();
@@ -419,9 +473,10 @@ const App = {
       this.settingInitSheetBtn.textContent = '헤더 강제 생성';
 
       if (res.status === 'success') {
-        this.showToast(res.message || '시트 헤더 생성이 완료되었습니다.', 'success');
+        this.showToast(res.message || '시트 초기화가 완료되었습니다.', 'success');
+        await this.syncRemoteSettings();
       } else {
-        this.showToast(res.message || '헤더 생성 실패', 'error');
+        this.showToast(res.message || '초기화 실패', 'error');
       }
     } catch (e) {
       this.settingInitSheetBtn.disabled = false;
@@ -430,13 +485,13 @@ const App = {
     }
   },
 
-  handleChangeAdminPassword() {
+  async handleChangeAdminPassword() {
     const currentPw = this.settingCurrentPw.value;
     const newPw = this.settingNewPw.value.trim();
     const confirmPw = this.settingConfirmPw.value.trim();
 
-    if (!CONFIG.verifyAdminPassword(currentPw)) {
-      this.showToast('현재 관리자 비밀번호가 일치하지 않습니다.', 'error');
+    if (!currentPw) {
+      this.showToast('현재 관리자 비밀번호를 입력해주세요.', 'warning');
       this.settingCurrentPw.focus();
       return;
     }
@@ -453,11 +508,27 @@ const App = {
       return;
     }
 
-    CONFIG.setAdminPassword(newPw);
-    this.settingCurrentPw.value = '';
-    this.settingNewPw.value = '';
-    this.settingConfirmPw.value = '';
-    this.showToast('관리자 비밀번호가 안전하게 변경되었습니다.', 'success');
+    this.settingChangePwBtn.disabled = true;
+    this.settingChangePwBtn.textContent = '변경 중...';
+
+    try {
+      const res = await ApiService.changeAdminPassword(currentPw, newPw);
+      this.settingChangePwBtn.disabled = false;
+      this.settingChangePwBtn.textContent = '비밀번호 변경 적용';
+
+      if (res && res.status === 'success') {
+        this.settingCurrentPw.value = '';
+        this.settingNewPw.value = '';
+        this.settingConfirmPw.value = '';
+        this.showToast('관리자 비밀번호가 구글 시트에 안전하게 변경되었습니다.', 'success');
+      } else {
+        this.showToast(res.message || '비밀번호 변경 실패', 'error');
+      }
+    } catch (e) {
+      this.settingChangePwBtn.disabled = false;
+      this.settingChangePwBtn.textContent = '비밀번호 변경 적용';
+      this.showToast(`비밀번호 변경 실패: ${e.message}`, 'error');
+    }
   },
 
   handleResetAllSettings() {

@@ -118,6 +118,159 @@ const ApiService = {
   },
 
   /**
+   * 구글 시트에서 최신 환경설정 가져오기
+   * @returns {Promise<{status: string, settings?: Object, message?: string}>}
+   */
+  async getRemoteSettings() {
+    const gasUrl = CONFIG.getGasUrl();
+    if (!gasUrl) {
+      return { status: 'mock', settings: CONFIG.DEFAULT_SETTINGS };
+    }
+
+    try {
+      const targetUrl = new URL(gasUrl);
+      targetUrl.searchParams.set('action', 'getSettings');
+
+      const response = await fetch(targetUrl.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.warn('getRemoteSettings 실패 (로컬 캐시 사용):', error);
+      return { status: 'error', message: error.message };
+    }
+  },
+
+  /**
+   * 환경설정 구글 시트에 저장하기
+   * @param {Object} settings 
+   * @returns {Promise<{status: string, settings?: Object, message?: string}>}
+   */
+  async saveRemoteSettings(settings) {
+    const gasUrl = CONFIG.getGasUrl();
+    if (!gasUrl) {
+      return { status: 'mock_saved', message: '로컬에만 저장되었습니다. (GAS 미연동)' };
+    }
+
+    try {
+      const payload = {
+        action: 'saveSettings',
+        settings: settings
+      };
+
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('saveRemoteSettings error:', error);
+      throw new Error(`시트에 설정 저장 실패: ${error.message}`);
+    }
+  },
+
+  /**
+   * 관리자 비밀번호 검증 (구글 시트 기반)
+   * @param {string} password 
+   * @returns {Promise<boolean>}
+   */
+  async verifyAdminPassword(password) {
+    const gasUrl = CONFIG.getGasUrl();
+    if (!gasUrl) {
+      return CONFIG.verifyAdminPassword(password);
+    }
+
+    try {
+      const payload = {
+        action: 'verifyAdmin',
+        password: password
+      };
+
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const res = await response.json();
+        if (res.status === 'success') {
+          return !!res.valid;
+        }
+      }
+    } catch (e) {
+      console.warn('verifyAdminPassword 원격 검증 실패, 로컬로 확인:', e);
+    }
+
+    // 원격 실패 시 로컬 캐시 검증 fallback
+    return CONFIG.verifyAdminPassword(password);
+  },
+
+  /**
+   * 관리자 비밀번호 변경 (구글 시트 저장)
+   * @param {string} currentPassword 
+   * @param {string} newPassword 
+   * @returns {Promise<{status: string, message?: string}>}
+   */
+  async changeAdminPassword(currentPassword, newPassword) {
+    const gasUrl = CONFIG.getGasUrl();
+    if (!gasUrl) {
+      if (CONFIG.verifyAdminPassword(currentPassword)) {
+        CONFIG.setAdminPassword(newPassword);
+        return { status: 'success', message: '로컬 비밀번호가 변경되었습니다.' };
+      }
+      return { status: 'error', message: '현재 비밀번호가 일치하지 않습니다.' };
+    }
+
+    try {
+      const payload = {
+        action: 'changeAdminPassword',
+        currentPassword: currentPassword,
+        newPassword: newPassword
+      };
+
+      const response = await fetch(gasUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        CONFIG.setAdminPassword(newPassword);
+      }
+      return result;
+    } catch (error) {
+      console.error('changeAdminPassword error:', error);
+      throw new Error(`비밀번호 변경 실패: ${error.message}`);
+    }
+  },
+
+  /**
    * GAS 웹앱 헬스체크
    */
   async checkHealth(url) {

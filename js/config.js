@@ -15,7 +15,7 @@ const CONFIG = {
     sheetUrl: '',
     monthlyLimit: '3', // 권장 월간 신청 권수 (0이면 제한없음)
     priceLimit: '50000', // 1권당 권장 상한 금액 (0이면 제한없음)
-    noticeText: '💡 1인당 월 최대 3권, 권당 5만원 이내의 도서를 권장합니다.',
+    noticeText: '📢 1인당 월 최대 3권, 권당 5만원 이내의 도서를 권장합니다.',
     successMessage: '구글 시트에 성공적으로 등록되었습니다.'
   },
 
@@ -42,13 +42,13 @@ const CONFIG = {
     }
   },
 
-  // 관리자 비밀번호 확인
+  // 로컬 관리자 비밀번호 확인
   verifyAdminPassword(inputPassword) {
     const savedPassword = localStorage.getItem(this.STORAGE_KEYS.ADMIN_PASSWORD) || this.DEFAULT_ADMIN_PASSWORD;
-    return inputPassword === savedPassword;
+    return String(inputPassword).trim() === String(savedPassword).trim();
   },
 
-  // 관리자 비밀번호 변경
+  // 관리자 비밀번호 변경 (로컬 캐시)
   setAdminPassword(newPassword) {
     if (newPassword && newPassword.trim() !== '') {
       localStorage.setItem(this.STORAGE_KEYS.ADMIN_PASSWORD, newPassword.trim());
@@ -57,7 +57,7 @@ const CONFIG = {
     return false;
   },
 
-  // 관리자 커스텀 설정 불러오기
+  // 관리자 커스텀 설정 불러오기 (로컬 캐시)
   getSettings() {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEYS.APP_SETTINGS);
@@ -70,7 +70,7 @@ const CONFIG = {
     return { ...this.DEFAULT_SETTINGS };
   },
 
-  // 관리자 커스텀 설정 저장
+  // 관리자 커스텀 설정 로컬 저장
   saveSettings(newSettings) {
     const current = this.getSettings();
     const updated = { ...current, ...newSettings };
