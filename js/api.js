@@ -136,6 +136,26 @@ const ApiService = {
   },
 
   /**
+   * 시트 헤더 초기화 트리거 (관리자 기능)
+   */
+  async initSheetHeaders() {
+    const gasUrl = CONFIG.getGasUrl();
+    if (!gasUrl) {
+      return { status: 'error', message: 'GAS URL이 설정되지 않았습니다.' };
+    }
+
+    try {
+      const targetUrl = new URL(gasUrl);
+      targetUrl.searchParams.set('action', 'initSheet');
+      const response = await fetch(targetUrl.toString(), { method: 'GET' });
+      const data = await response.json();
+      return data;
+    } catch (e) {
+      return { status: 'error', message: `헤더 초기화 요청 실패: ${e.message}` };
+    }
+  },
+
+  /**
    * Mock 검색 결과 생성기
    */
   getMockSearchResults(query) {
